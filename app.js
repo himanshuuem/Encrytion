@@ -6,7 +6,7 @@ const express = require("express");
 const ejs=require("ejs");
 const  app = express();
 const mongoose=require("mongoose");
-const md5 = require('md5');
+const bcrypt = require('bcrypt');
 
 app.set("view engine", "ejs");
 app.use(express.urlencoded({ extended: true }));
@@ -18,6 +18,7 @@ const usersSchema = new mongoose.Schema({
   });
 const User= new mongoose.model("User",usersSchema)
 
+const saltRounds = 10;//bcrypt with salt
 
 app.get("/",function(req,res){
     res.render("home");
@@ -30,26 +31,35 @@ app.get("/register",function(req,res){
 });
 
 app.post("/register",function(req,res){
-    const newUser=new User({
+    bcrypt.hash(req.body.password, saltRounds).then(function(hash) {
+        // Store hash in your password DB.
+        const newUser=new User({
         email:req.body.username,
-        password:md5(req.body.password)
+        password:hash
     });
     newUser.save();
       res.render("secrets");
+    });
+  
 });
 
 app.post("/login",function(req,res){
+
    const  username=req.body.username;
-   const pass =md5(req.body.password);
+   const pass =req.body.password;
+   
+
 
     User.findOne({email:username}).then(function(i){
-        
-        if(i.password===pass){
+         bcrypt.compare(pass, i.password).then(function(result) {
+           if(result===true){
             res.render("secrets");
         }
         else{
             res.send("Invalid Credentials!!");
-        }
+        } 
+        });
+        
        });
 });
 app.get("/logout",function(req,res){
